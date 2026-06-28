@@ -2,5 +2,8 @@
 __pycache__/
 .ipynb_checkpoints/
 
+# Databricks CLI local bundle state
+.databricks/
+
 # Cursor canvases (local only, not for GitHub)
 canvases/

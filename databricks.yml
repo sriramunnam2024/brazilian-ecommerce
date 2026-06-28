@@ -1,0 +1,47 @@
+# Databricks Asset Bundle — deploy with Databricks CLI:
+#   databricks bundle validate
+#   databricks bundle deploy -t dev
+#   databricks bundle run medallion_pipeline -t dev
+#
+# Before deploy: set workspace host in targets.dev.workspace.host
+# and git_repo_path to your Repos path in the workspace.
+
+bundle:
+  name: brazilian-ecommerce
+
+include:
+  - databricks/resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: mypractice
+  bronze_schema:
+    default: brazilian_ecommerce_bronze
+  silver_schema:
+    default: brazilian_ecommerce_silver
+  gold_schema:
+    default: brazilian_ecommerce_gold
+  bronze_volume:
+    default: raw_data
+  source_schema:
+    default: default
+  source_volume:
+    default: brazilian_ecommerce_raw_data
+  git_repo_path:
+    description: >
+      Notebook base path in the workspace, e.g.
+      /Repos/your-email/brazilian-ecommerce
+    default: /Repos/REPLACE_ME/brazilian-ecommerce
+  node_type_id:
+    description: >
+      Cluster node type available in your workspace (Workflows -> create job -> see dropdown).
+    default: i3.xlarge
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      # Example: https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
+      host: https://REPLACE_ME.cloud.databricks.com

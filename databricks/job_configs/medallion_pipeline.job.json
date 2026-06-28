@@ -1,0 +1,74 @@
+{
+  "name": "brazilian_ecommerce_medallion",
+  "description": "Medallion batch load: bronze_load -> silver_load -> gold_load",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 7200,
+  "job_clusters": [
+    {
+      "job_cluster_key": "medallion_cluster",
+      "new_cluster": {
+        "spark_version": "15.4.x-scala2.12",
+        "num_workers": 0,
+        "node_type_id": "REPLACE_WITH_YOUR_NODE_TYPE",
+        "spark_conf": {
+          "spark.databricks.cluster.profile": "singleNode",
+          "spark.master": "local[*]"
+        },
+        "custom_tags": {
+          "ResourceClass": "SingleNode",
+          "project": "brazilian-ecommerce"
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "bronze_load",
+      "job_cluster_key": "medallion_cluster",
+      "notebook_task": {
+        "notebook_path": "/Repos/REPLACE_ME/brazilian-ecommerce/databricks/notebooks/bronze_load",
+        "base_parameters": {
+          "catalog": "mypractice",
+          "bronze_schema": "brazilian_ecommerce_bronze",
+          "bronze_volume": "raw_data",
+          "source_schema": "default",
+          "source_volume": "brazilian_ecommerce_raw_data"
+        }
+      }
+    },
+    {
+      "task_key": "silver_load",
+      "job_cluster_key": "medallion_cluster",
+      "depends_on": [
+        {
+          "task_key": "bronze_load"
+        }
+      ],
+      "notebook_task": {
+        "notebook_path": "/Repos/REPLACE_ME/brazilian-ecommerce/databricks/notebooks/silver_load",
+        "base_parameters": {
+          "catalog": "mypractice",
+          "bronze_schema": "brazilian_ecommerce_bronze",
+          "silver_schema": "brazilian_ecommerce_silver"
+        }
+      }
+    },
+    {
+      "task_key": "gold_load",
+      "job_cluster_key": "medallion_cluster",
+      "depends_on": [
+        {
+          "task_key": "silver_load"
+        }
+      ],
+      "notebook_task": {
+        "notebook_path": "/Repos/REPLACE_ME/brazilian-ecommerce/databricks/notebooks/gold_load",
+        "base_parameters": {
+          "catalog": "mypractice",
+          "silver_schema": "brazilian_ecommerce_silver",
+          "gold_schema": "brazilian_ecommerce_gold"
+        }
+      }
+    }
+  ]
+}

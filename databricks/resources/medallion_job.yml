@@ -1,0 +1,62 @@
+resources:
+  jobs:
+    medallion_pipeline:
+      name: brazilian_ecommerce_medallion
+      description: >
+        Medallion batch load: bronze_load -> silver_load -> gold_load.
+        Does not run cleanup.
+      max_concurrent_runs: 1
+      timeout_seconds: 7200
+      email_notifications:
+        on_failure: []
+
+      job_clusters:
+        - job_cluster_key: medallion_cluster
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+            custom_tags:
+              ResourceClass: SingleNode
+              project: brazilian-ecommerce
+            # Free tier: pick a node type available in your account (UI shows options).
+            node_type_id: ${var.node_type_id}
+
+      tasks:
+        - task_key: bronze_load
+          job_cluster_key: medallion_cluster
+          notebook_task:
+            notebook_path: ${var.git_repo_path}/databricks/notebooks/bronze_load
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.bronze_schema}
+              bronze_volume: ${var.bronze_volume}
+              source_schema: ${var.source_schema}
+              source_volume: ${var.source_volume}
+
+        - task_key: silver_load
+          job_cluster_key: medallion_cluster
+          depends_on:
+            - task_key: bronze_load
+          notebook_task:
+            notebook_path: ${var.git_repo_path}/databricks/notebooks/silver_load
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              bronze_schema: ${var.bronze_schema}
+              silver_schema: ${var.silver_schema}
+
+        - task_key: gold_load
+          job_cluster_key: medallion_cluster
+          depends_on:
+            - task_key: silver_load
+          notebook_task:
+            notebook_path: ${var.git_repo_path}/databricks/notebooks/gold_load
+            source: WORKSPACE
+            base_parameters:
+              catalog: ${var.catalog}
+              silver_schema: ${var.silver_schema}
+              gold_schema: ${var.gold_schema}
