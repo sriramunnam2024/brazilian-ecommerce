@@ -1,31 +1,31 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Step 1 — Bronze load (Olist CSVs)
+# MAGIC # bronze_load
 # MAGIC
-# MAGIC Loads all 9 CSVs from the Unity Catalog volume into Delta bronze tables.
+# MAGIC Load Olist CSVs from a Unity Catalog volume into **`brazilian_ecommerce_bronze`**.
 # MAGIC
-# MAGIC **CSV fixes applied:**
-# MAGIC - Explicit schemas (no `inferSchema`) — keeps zip codes as strings, timestamps as timestamps
-# MAGIC - UTF-8 encoding
-# MAGIC - Renames product column typos (`product_name_lenght` → `product_name_length`)
+# MAGIC **Prerequisite:** Create schema + volume, upload 9 CSVs to:
+# MAGIC `/Volumes/<catalog>/brazilian_ecommerce_bronze/raw_data/archive/`
 # MAGIC
-# MAGIC **Next steps** (add later): silver transforms, gold models, EDA.
+# MAGIC **CSV fixes:** explicit schemas (no `inferSchema`), UTF-8, product column typo rename.
 
 # COMMAND ----------
 
 dbutils.widgets.text("catalog", "mypractice")
-dbutils.widgets.text("schema", "brazilian_ecommerce")
-dbutils.widgets.text("subfolder", "raw_data/archive")
+dbutils.widgets.text("bronze_schema", "brazilian_ecommerce_bronze")
+dbutils.widgets.text("volume_subfolder", "raw_data/archive")
 
 CATALOG = dbutils.widgets.get("catalog")
-SCHEMA = dbutils.widgets.get("schema")
-SUBFOLDER = dbutils.widgets.get("subfolder")
+BRONZE_SCHEMA = dbutils.widgets.get("bronze_schema")
+VOLUME_SUBFOLDER = dbutils.widgets.get("volume_subfolder")
 
-BASE_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{SUBFOLDER}"
-TARGET = f"{CATALOG}.{SCHEMA}"
+BRONZE = f"{CATALOG}.{BRONZE_SCHEMA}"
+BASE_PATH = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/{VOLUME_SUBFOLDER}"
 
-print(f"Reading : {BASE_PATH}")
-print(f"Writing : {TARGET}")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {BRONZE}")
+
+print(f"Volume  : {BASE_PATH}")
+print(f"Bronze  : {BRONZE}")
 
 # COMMAND ----------
 
@@ -145,7 +145,6 @@ PRODUCT_RENAMES = {
 
 # COMMAND ----------
 
-tables = {}
 for table_name, (filename, schema) in TABLE_SPECS.items():
     df = (
         spark.read.option("header", True)
@@ -156,18 +155,10 @@ for table_name, (filename, schema) in TABLE_SPECS.items():
     if table_name == "olist_products_dataset":
         for old, new in PRODUCT_RENAMES.items():
             df = df.withColumnRenamed(old, new)
-    tables[table_name] = df
-    df.write.mode("overwrite").saveAsTable(f"{TARGET}.{table_name}")
+    df.write.mode("overwrite").saveAsTable(f"{BRONZE}.{table_name}")
     print(f"{table_name:45s} {df.count():>10,} rows")
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Spot check
-# MAGIC
-# MAGIC Zip codes should be strings (e.g. `01037`, not `1037`). Timestamps should be `timestamp`, not `string`.
-
-# COMMAND ----------
-
-display(spark.table(f"{TARGET}.olist_customers_dataset").select("customer_zip_code_prefix").limit(5))
-display(spark.table(f"{TARGET}.olist_orders_dataset").select("order_purchase_timestamp").limit(5))
+display(spark.table(f"{BRONZE}.olist_customers_dataset").select("customer_zip_code_prefix").limit(5))
+display(spark.table(f"{BRONZE}.olist_orders_dataset").select("order_purchase_timestamp").limit(5))
